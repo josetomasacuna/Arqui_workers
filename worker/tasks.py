@@ -35,7 +35,7 @@ def calculate_estimations(user_id: str, stocks: dict, request_id: str):
             result["total_estimated_gain"] += estimated_gain
 
         
-        save_to_db(user_id, result)
+        # save_to_db(user_id, result)
 
         requests.post("http://jobmaster:8000/job", json=result)
 
@@ -47,7 +47,7 @@ def calculate_estimations(user_id: str, stocks: dict, request_id: str):
     return result
 
 def get_last_price(symbol: str) -> float:
-    # Simulación (reemplazar con API real como Alpha Vantage)
+    
     return 100.0
 
 def get_month_ago_price(symbol: str) -> float:
@@ -55,5 +55,5 @@ def get_month_ago_price(symbol: str) -> float:
     return 90.0
 
 def save_to_db(user_id: str, result: dict):
-    # Simulación (usar base de datos en producción)
+   
     pass

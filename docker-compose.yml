@@ -1,0 +1,31 @@
+services:
+  jobmaster:
+    build:
+      context: .
+      dockerfile: Dockerfile.jobmaster
+    ports:
+      - "8000:8000"
+    command: uvicorn jobmaster.main:app --host 0.0.0.0 --port 8000
+    depends_on:
+      - redis
+    networks:
+      - app-network
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    command: celery -A worker.tasks worker --loglevel=info
+    depends_on:
+      - redis
+      - jobmaster
+    networks:
+      - app-network
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+networks:
+  app-network:
+    driver: bridge

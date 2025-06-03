@@ -44,24 +44,12 @@ class AnalysisResponse(BaseModel):
     estimated_value: float
     sub: str
 
-@app.post("/job", response_model=AnalysisResponse)
-async def analyze_stock(request: AnalysisRequest):
-    try:
-        # Validate required fields
-        if not all([request.symbol, request.oldest_timestamp, request.recent_timestamp, request.sub]):
-            raise HTTPException(status_code=400, detail="Missing required fields")
-
-        # Placeholder for actual analysis logic
-        # For now, we'll return a dummy estimated value
-        estimated_value = (request.recent_price or 0.0) * request.quantity
-
-        return AnalysisResponse(
-            symbol=request.symbol,
-            estimated_value=estimated_value,
-            sub=request.sub
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing analysis: {str(e)}")
+@app.post("/job")
+async def receive_job_data(request: Request):
+    data = await request.json()
+    print("[JOBMASTER] Datos recibidos:")
+    print(data)
+    return {"status": "ok"}
     
 @app.get("/job/{job_id}")
 def get_job(job_id: str):

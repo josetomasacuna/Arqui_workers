@@ -1,4 +1,5 @@
-from typing import List, Dict
+import logging
+from typing import List, Dict, Optional
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from celery import Celery
@@ -29,47 +30,38 @@ def heartbeat():
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class JobRequest(BaseModel):
-    user_id: str
-    stocks: List[StockEstimationData]
+class AnalysisRequest(BaseModel):
+    symbol: str
+    oldest_price: Optional[float]
+    oldest_timestamp: str
+    recent_price: Optional[float]
+    recent_timestamp: str
+    quantity: int
+    sub: str
 
-@app.post("/job", response_model=dict)
-async def create_job(request: Request):
+class AnalysisResponse(BaseModel):
+    symbol: str
+    estimated_value: float
+    sub: str
+
+@app.post("/job", response_model=AnalysisResponse)
+async def analyze_stock(request: AnalysisRequest):
     try:
-        body = await request.json()
-        logger.info("CUERPO RECIBIDO EN JOBMASTER:\n%s", body)
+        # Validate required fields
+        if not all([request.symbol, request.oldest_timestamp, request.recent_timestamp, request.sub]):
+            raise HTTPException(status_code=400, detail="Missing required fields")
 
-        job = JobRequest(**body)  # valida los datos y los convierte a objeto Pydantic
+        # Placeholder for actual analysis logic
+        # For now, we'll return a dummy estimated value
+        estimated_value = (request.recent_price or 0.0) * request.quantity
 
-        request_id = str(uuid4())
-        logger.info(f"Generado request_id: {request_id}")
-
-        jobs[request_id] = {
-            "request_id": request_id,
-            "timestamp": datetime.utcnow().isoformat(),
-            "status": "ACCEPTED",
-            "reason": "Tarea encolada",
-            "estimations": {},
-            "total_estimated_gain": 0.0
-        }
-
-        # Serializar stocks a dict para enviar por Celery
-        stocks_serialized = [stock.dict() for stock in job.stocks]
-        logger.info("Datos serializados para Celery:\n%s", stocks_serialized)
-
-        # Enviar tarea a Celery
-        celery_app.send_task(
-            'tasks.calculate_estimations',
-            args=[job.user_id, stocks_serialized, request_id],
-            task_id=request_id
+        return AnalysisResponse(
+            symbol=request.symbol,
+            estimated_value=estimated_value,
+            sub=request.sub
         )
-        logger.info("Tarea enviada a Celery")
-
-        return jobs[request_id]
-
     except Exception as e:
-        logger.error("Error en create_job: %s", e, exc_info=True)
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=f"Error processing analysis: {str(e)}")
     
 @app.get("/job/{job_id}")
 def get_job(job_id: str):

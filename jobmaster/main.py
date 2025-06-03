@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from celery import Celery
@@ -10,7 +10,7 @@ app = FastAPI()
 celery_app = Celery('tasks', broker='redis://redis:6379/0', backend='redis://redis:6379/0')
 jobs = {}  
 
-class JobEstimationPoint(BaseModel):
+class StockEstimationData(BaseModel):
     symbol: str
     price_start: float
     timestamp_start: str
@@ -20,8 +20,8 @@ class JobEstimationPoint(BaseModel):
 
 class JobRequest(BaseModel):
     user_id: str
-    stocks: List[JobEstimationPoint]
-    
+    stocks: Dict[str, StockEstimationData]
+
 @app.get("/heartbeat")
 def heartbeat():
     return True
@@ -34,32 +34,27 @@ async def debug_job(request: Request):
     
     return JSONResponse(content={"message": "Datos recibidos"}, status_code=200)
 
-# @app.post("/job", response_model=dict)
-# async def create_job(job: JobRequest, request: Request):
-#     body = await request.body()
-#     print("CUERPO RECIBIDO EN JOBMASTER (RAW):")
-#     print(body.decode("utf-8"))
+@app.post("/job", response_model=dict)
+def create_job(job: JobRequest):
+    request_id = str(uuid4())
 
-#     # También imprime el objeto ya parseado
-#     print("OBJETO PARSEADO (Pydantic):")
-#     print(job)
+    jobs[request_id] = {
+        "request_id": request_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "status": "ACCEPTED",
+        "reason": "Tarea encolada",
+        "estimations": {},
+        "total_estimated_gain": 0.0
+    }
 
-#     request_id = str(uuid.uuid4())
-#     jobs[request_id] = {
-#         "request_id": request_id,
-#         "timestamp": datetime.utcnow().isoformat(),
-#         "status": "ACCEPTED",
-#         "reason": "Tarea encolada",
-#         "estimations": {},
-#         "total_estimated_gain": 0.0
-#     }
-#     # Encolar tarea en Celery
-#     celery_app.send_task(
-#         'tasks.calculate_estimations',
-#         args=[job.user_id, job.stocks, request_id],
-#         task_id=request_id
-#     )
-#     return jobs[request_id]
+    # Encolar la tarea, con el diccionario de stocks
+    celery_app.send_task(
+        'tasks.calculate_estimations',
+        args=[job.user_id, job.stocks, request_id],
+        task_id=request_id
+    )
+
+    return jobs[request_id]
 
 @app.get("/job/{job_id}")
 def get_job(job_id: str):

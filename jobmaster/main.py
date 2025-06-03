@@ -48,8 +48,9 @@ class AnalysisResponse(BaseModel):
 @app.post("/job")
 async def recibir_datos(datos: List[dict]):
     print("[JOBMASTER] Recibido POST con datos")
-    celery_app.send_task("worker.tasks.calcular_estimacion", args=[datos])
-    return {"status": "Tarea enviada al worker"}
+    task = celery_app.send_task("worker.tasks.calcular_estimacion", args=[datos])
+    print(f"[JOBMASTER] Tarea enviada con ID: {task.id}")
+    return {"status": task.id}
 
 @app.get("/job/{job_id}")
 def get_job(job_id: str):

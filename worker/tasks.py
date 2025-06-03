@@ -5,7 +5,7 @@ celery_app = Celery('tasks', broker='redis://redis:6379/0', backend='redis://red
 
 from datetime import datetime, timedelta
 
-@app.task
+@celery_app.task
 def calcular_estimacion(stock_data):
     print("[CELERY] Recibido stock_data:")
     print(stock_data)

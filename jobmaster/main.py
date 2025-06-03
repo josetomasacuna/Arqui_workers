@@ -26,32 +26,51 @@ class JobRequest(BaseModel):
 def heartbeat():
     return True
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class JobRequest(BaseModel):
+    user_id: str
+    stocks: List[StockEstimationData]
+
 @app.post("/job", response_model=dict)
-def create_job(user_id: str, stocks: list[StockEstimationData]):
-    request_id = str(uuid.uuid4())
+async def create_job(request: Request):
+    try:
+        body = await request.json()
+        logger.info("CUERPO RECIBIDO EN JOBMASTER:\n%s", body)
+
+        job = JobRequest(**body)  # valida los datos y los convierte a objeto Pydantic
+
+        request_id = str(uuid4())
+        logger.info(f"Generado request_id: {request_id}")
+
+        jobs[request_id] = {
+            "request_id": request_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "status": "ACCEPTED",
+            "reason": "Tarea encolada",
+            "estimations": {},
+            "total_estimated_gain": 0.0
+        }
+
+        # Serializar stocks a dict para enviar por Celery
+        stocks_serialized = [stock.dict() for stock in job.stocks]
+        logger.info("Datos serializados para Celery:\n%s", stocks_serialized)
+
+        # Enviar tarea a Celery
+        celery_app.send_task(
+            'tasks.calculate_estimations',
+            args=[job.user_id, stocks_serialized, request_id],
+            task_id=request_id
+        )
+        logger.info("Tarea enviada a Celery")
+
+        return jobs[request_id]
+
+    except Exception as e:
+        logger.error("Error en create_job: %s", e, exc_info=True)
+        return {"error": str(e)}
     
-    # Convertir lista de objetos Pydantic a lista de diccionarios
-    stocks_dicts = [stock.dict() for stock in stocks]
-
-    # Guardar o crear el job en tu estructura local
-    jobs[request_id] = {
-        "request_id": request_id,
-        "timestamp": datetime.utcnow().isoformat(),
-        "status": "ACCEPTED",
-        "reason": "Tarea encolada",
-        "estimations": {},
-        "total_estimated_gain": 0.0
-    }
-
-    # Enviar tarea a Celery con datos serializables
-    celery_app.send_task(
-        'tasks.calculate_estimations',
-        args=[user_id, stocks_dicts, request_id],
-        task_id=request_id
-    )
-
-    return jobs[request_id]
-
 @app.get("/job/{job_id}")
 def get_job(job_id: str):
     if job_id not in jobs:

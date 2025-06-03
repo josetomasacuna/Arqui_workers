@@ -26,14 +26,6 @@ class JobRequest(BaseModel):
 def heartbeat():
     return True
 
-@app.post("/job")
-async def debug_job(request: Request):
-    body = await request.body()
-    print("CUERPO RECIBIDO EN JOBMASTER:")
-    print(body.decode("utf-8"))
-    
-    return JSONResponse(content={"message": "Datos recibidos"}, status_code=200)
-
 @app.post("/job", response_model=dict)
 def create_job(job: JobRequest):
     request_id = str(uuid4())

@@ -1,54 +1,48 @@
 from celery import Celery
 from datetime import datetime
-import requests
 
 celery_app = Celery('tasks', broker='redis://redis:6379/0', backend='redis://redis:6379/0')
 
-@celery_app.task
-def calculate_estimations(user_id, stocks, request_id):
-    results = []
-    total_gain = 0.0
+from datetime import datetime, timedelta
 
-    for stock in stocks:
-        try:
-            # Convert timestamps to seconds since epoch
-            t1 = int(datetime.fromisoformat(stock["timestamp_start"]).timestamp())
-            t2 = int(datetime.fromisoformat(stock["timestamp_end"]).timestamp())
-            p1 = stock["price_start"]
-            p2 = stock["price_end"]
-            quantity = stock["total_quantity"]
+@app.task
+def calcular_estimacion(stock_data):
+    print("[CELERY] Recibido stock_data:")
+    print(stock_data)
 
-            if t2 == t1:
-                gain = 0.0  # Avoid division by zero
-            else:
-                # Slope
-                m = (p2 - p1) / (t2 - t1)
-                t_future = t2 + 30 * 24 * 60 * 60
-                p_future = p2 + m * (t_future - t2)
+    estimaciones = []
 
-                gain = (p_future - p2) * quantity
+    for stock in stock_data:
+        print(f"[ESTIMACIÓN] Procesando {stock['symbol']}...")
 
-            results.append({
-                "symbol": stock["symbol"],
-                "projected_price_30d": round(p_future, 2),
-                "estimated_gain": round(gain, 2)
-            })
+        fecha1 = datetime.fromisoformat(stock["fecha_antigua"].replace("Z", "+00:00"))
+        fecha2 = datetime.fromisoformat(stock["fecha_nueva"].replace("Z", "+00:00"))
 
-            total_gain += gain
+        precio1 = stock["precio_antiguo"]
+        precio2 = stock["precio_nuevo"]
 
-        except Exception as e:
-            results.append({
-                "symbol": stock.get("symbol", "UNKNOWN"),
-                "error": str(e)
-            })
+        # días entre puntos
+        delta_dias = (fecha2 - fecha1).days or 1
+        print(f"[ESTIMACIÓN] Días entre fechas: {delta_dias}")
 
-    # Guardar resultado en memoria (o DB si estás usando una)
-    from jobmaster import jobs  # ← Asegúrate que esto sea posible sin ciclo circular
-    if request_id in jobs:
-        jobs[request_id]["status"] = "COMPLETED"
-        jobs[request_id]["reason"] = "Estimación finalizada"
-        jobs[request_id]["estimations"] = results
-        jobs[request_id]["total_estimated_gain"] = round(total_gain, 2)
+        # pendiente (cambio por día)
+        pendiente = (precio2 - precio1) / delta_dias
+        print(f"[ESTIMACIÓN] Pendiente: {pendiente}")
 
-    return results
+        # estimación a 30 días desde fecha2
+        fecha_objetivo = fecha2 + timedelta(days=30)
+        dias_hacia_futuro = (fecha_objetivo - fecha2).days
+        estimado = precio2 + pendiente * dias_hacia_futuro
 
+        print(f"[ESTIMACIÓN] Precio estimado a 30 días: {estimado}")
+        estimaciones.append({
+            "symbol": stock["symbol"],
+            "estimado_en_30_dias": estimado,
+            "fecha_objetivo": fecha_objetivo.isoformat()
+        })
+
+    print("[ESTIMACIÓN] Resultados:")
+    for est in estimaciones:
+        print(est)
+
+    return estimaciones

@@ -6,6 +6,8 @@ from celery import Celery
 from datetime import datetime
 import uuid
 from fastapi.responses import JSONResponse
+from worker.tasks import calcular_estimacion
+
 
 app = FastAPI()
 celery_app = Celery('tasks', broker='redis://redis:6379/0', backend='redis://redis:6379/0')
@@ -45,12 +47,11 @@ class AnalysisResponse(BaseModel):
     sub: str
 
 @app.post("/job")
-async def receive_job_data(request: Request):
-    data = await request.json()
-    print("[JOBMASTER] Datos recibidos:")
-    print(data)
-    return {"status": "ok"}
-    
+async def recibir_datos(datos: List[dict]):
+    print("[JOBMASTER] Recibido POST con datos")
+    calcular_estimacion.delay(datos)  # se encola
+    return {"status": "Tarea enviada al worker"}
+
 @app.get("/job/{job_id}")
 def get_job(job_id: str):
     if job_id not in jobs:

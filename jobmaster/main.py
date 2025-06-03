@@ -6,7 +6,6 @@ from celery import Celery
 from datetime import datetime
 import uuid
 from fastapi.responses import JSONResponse
-from worker.tasks import calcular_estimacion
 
 
 app = FastAPI()

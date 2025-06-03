@@ -49,7 +49,7 @@ class AnalysisResponse(BaseModel):
 @app.post("/job")
 async def recibir_datos(datos: List[dict]):
     print("[JOBMASTER] Recibido POST con datos")
-    calcular_estimacion.delay(datos)  # se encola
+    celery_app.send_task("worker.tasks.calcular_estimacion", args=[datos])
     return {"status": "Tarea enviada al worker"}
 
 @app.get("/job/{job_id}")

@@ -8,10 +8,18 @@ app = FastAPI()
 celery_app = Celery('tasks', broker='redis://redis:6379/0', backend='redis://redis:6379/0')
 jobs = {}  
 
+class JobEstimationPoint(BaseModel):
+    symbol: str
+    price_start: float
+    timestamp_start: str
+    price_end: float
+    timestamp_end: str
+    total_quantity: int
+
 class JobRequest(BaseModel):
     user_id: str
-    stocks: dict[str, int]
-
+    stocks: List[JobEstimationPoint]
+    
 class JobResponse(BaseModel):
     request_id: str
     timestamp: str

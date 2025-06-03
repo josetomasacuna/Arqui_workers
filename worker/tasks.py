@@ -1,5 +1,6 @@
 from celery import Celery
 from datetime import datetime
+import requests
 
 celery_app = Celery('tasks', broker='redis://redis:6379/0', backend='redis://redis:6379/0')
 
@@ -40,6 +41,11 @@ def calcular_estimacion(stock_data):
             "estimado_en_30_dias": estimado,
             "fecha_objetivo": fecha_objetivo.isoformat()
         })
+
+    requests.post("http://jobmaster:8000/job_result", json={
+        "task_id": calcular_estimacion.request.id,
+        "resultado": estimaciones
+    })
 
     print("[ESTIMACIÓN] Resultados:")
     for est in estimaciones:

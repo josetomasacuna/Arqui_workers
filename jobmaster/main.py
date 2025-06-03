@@ -27,19 +27,13 @@ def heartbeat():
     return True
 
 @app.post("/job", response_model=dict)
-async def create_job(request: Request):
-    body = await request.json()
-    print("CUERPO RECIBIDO EN JOBMASTER:")
-    print(body)
-    # Ahora intenta hacer parse con Pydantic para ver si falla y dónde:
-    try:
-        job = JobRequest(**body)
-    except Exception as e:
-        print("Error al parsear JobRequest:", e)
-        raise
-
-    # Si llegó hasta acá, sigue como antes
+def create_job(user_id: str, stocks: list[StockEstimationData]):
     request_id = str(uuid.uuid4())
+    
+    # Convertir lista de objetos Pydantic a lista de diccionarios
+    stocks_dicts = [stock.dict() for stock in stocks]
+
+    # Guardar o crear el job en tu estructura local
     jobs[request_id] = {
         "request_id": request_id,
         "timestamp": datetime.utcnow().isoformat(),
@@ -48,12 +42,11 @@ async def create_job(request: Request):
         "estimations": {},
         "total_estimated_gain": 0.0
     }
-    # Encolar tarea...
 
-    # Encolar la tarea, con el diccionario de stocks
+    # Enviar tarea a Celery con datos serializables
     celery_app.send_task(
         'tasks.calculate_estimations',
-        args=[job.user_id, job.stocks, request_id],
+        args=[user_id, stocks_dicts, request_id],
         task_id=request_id
     )
 

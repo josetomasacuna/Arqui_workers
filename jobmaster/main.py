@@ -12,38 +12,11 @@ app = FastAPI()
 celery_app = Celery('tasks', broker='redis://redis:6379/0', backend='redis://redis:6379/0')
 jobs = {}  
 
-# class StockEstimationData(BaseModel):
-#     symbol: str
-#     price_start: float
-#     timestamp_start: str
-#     price_end: float
-#     timestamp_end: str
-#     total_quantity: int
-
-# class JobRequest(BaseModel):
-#     user_id: str
-#     stocks: Dict[str, StockEstimationData]
 
 @app.get("/heartbeat")
 def heartbeat():
     return True
 
-# logging.basicConfig(level=logging.INFO)
-# logger = logging.getLogger(__name__)
-
-# class AnalysisRequest(BaseModel):
-#     symbol: str
-#     oldest_price: Optional[float]
-#     oldest_timestamp: str
-#     recent_price: Optional[float]
-#     recent_timestamp: str
-#     quantity: int
-#     sub: str
-
-# class AnalysisResponse(BaseModel):
-#     symbol: str
-#     estimated_value: float
-#     sub: str
 
 @app.post("/job")
 async def recibir_datos(datos: List[dict]):
